@@ -3,77 +3,40 @@ import pandas as pd
 import folium
 from streamlit_folium import st_folium
 
-# 1. 페이지 설정
-st.set_page_config(
-    page_title="편의점 & 카페 지도",
-    page_icon="📍",
-    layout="wide"
-)
+st.set_page_config(page_title="편의점 & 카페 지도", page_icon="📍", layout="wide")
+st.title("📍 편의점 및 카페 위치 지도 (Folium 버전)")
 
-st.title("📍 편의점 및 카페 위치 지도")
+# 샘플 데이터
+data = [
+    {"name": "CU 제주공항점", "category": "편의점", "lat": 33.5066, "lon": 126.4928},
+    {"name": "GS25 제주연동점", "category": "편의점", "lat": 33.4880, "lon": 126.4900},
+    {"name": "스타벅스 제주공항DT점", "category": "카페", "lat": 33.5000, "lon": 126.4800},
+    {"name": "투썸플레이스 제주시청점", "category": "카페", "lat": 33.4990, "lon": 126.5300},
+]
+df = pd.DataFrame(data)
 
-# 2. 데이터 생성
-@st.cache_data
-def load_data():
-    data = [
-        {"name": "CU 제주공항점", "category": "편의점", "lat": 33.5066, "lon": 126.4928},
-        {"name": "GS25 제주연동점", "category": "편의점", "lat": 33.4880, "lon": 126.4900},
-        {"name": "세븐일레븐 노형점", "category": "편의점", "lat": 33.4840, "lon": 126.4800},
-        {"name": "스타벅스 제주공항DT점", "category": "카페", "lat": 33.5000, "lon": 126.4800},
-        {"name": "투썸플레이스 제주시청점", "category": "카페", "lat": 33.4990, "lon": 126.5300},
-        {"name": "에이바우트커피 신제주점", "category": "카페", "lat": 33.4850, "lon": 126.4920},
-        {"name": "빽다방 제주연동점", "category": "카페", "lat": 33.4890, "lon": 126.4910},
-    ]
-    return pd.DataFrame(data)
+# 필터
+selected = st.multiselect("카테고리 선택", ["편의점", "카페"], default=["편의점", "카페"])
+filtered_df = df[df["category"].isin(selected)]
 
-df = load_data()
+# 기본 지도 생성 (OpenStreetMap 기반 - 밝은 일반 지도)
+m = folium.Map(location=[33.4995, 126.5312], zoom_start=12)
 
-# 3. 사이드바 - 카테고리 필터
-st.sidebar.header("🔍 검색 및 필터")
-selected_categories = st.sidebar.multiselect(
-    "표시할 매장 유형을 선택하세요:",
-    options=["편의점", "카페"],
-    default=["편의점", "카페"]
-)
-
-# 필터링 데이터
-filtered_df = df[df["category"].isin(selected_categories)]
-
-# 4. 상단 매장 수 표시 (st.metric)
-total_count = len(filtered_df)
-convenience_count = len(filtered_df[filtered_df["category"] == "편의점"])
-cafe_count = len(filtered_df[filtered_df["category"] == "카페"])
-
-col1, col2, col3 = st.columns(3)
-col1.metric(label="🏪 전체 매장 수", value=f"{total_count}개")
-col2.metric(label="🔵 편의점 수", value=f"{convenience_count}개")
-col3.metric(label="🔴 카페 수", value=f"{cafe_count}개")
-
-st.markdown("---")
-
-# 5. 지도 생성 (오픈스트리트맵 기준)
-if not filtered_df.empty:
-    center_lat = filtered_df["lat"].mean()
-    center_lon = filtered_df["lon"].mean()
-else:
-    center_lat, center_lon = 33.4950, 126.4950
-
-m = folium.Map(
-    location=[center_lat, center_lon],
-    zoom_start=13,
-    tiles="OpenStreetMap"
-)
-
-# 6. 마커 추가 (충돌이 적은 기본 핀 마커 방식)
+# 마커(점) 추가
 for _, row in filtered_df.iterrows():
+    # 편의점은 파란색, 카페는 빨간색
     color = "blue" if row["category"] == "편의점" else "red"
     
-    folium.Marker(
+    folium.CircleMarker(
         location=[row["lat"], row["lon"]],
-        popup=folium.Popup(f"<b>{row['name']}</b><br>유형: {row['category']}", max_width=200),
+        radius=8,
+        popup=row["name"],
         tooltip=f"{row['name']} ({row['category']})",
-        icon=folium.Icon(color=color)
+        color=color,
+        fill=True,
+        fill_color=color,
+        fill_opacity=0.7
     ).add_to(m)
 
-# 7. 지도 출력 (가장 안정적인 파라미터 조합)
-st_folium(m, width=None, height=500)
+# Streamlit에 지도 표시
+st_folium(m, width=1000, height=500)
