@@ -12,7 +12,7 @@ st.set_page_config(
 
 st.title("📍 편의점 및 카페 위치 지도")
 
-# 2. 샘플 데이터 불러오기
+# 2. 데이터 생성
 @st.cache_data
 def load_data():
     data = [
@@ -36,10 +36,10 @@ selected_categories = st.sidebar.multiselect(
     default=["편의점", "카페"]
 )
 
-# 필터링된 데이터
+# 필터링 데이터
 filtered_df = df[df["category"].isin(selected_categories)]
 
-# 4. 상단 개수 표시 (st.metric)
+# 4. 상단 매장 수 표시 (st.metric)
 total_count = len(filtered_df)
 convenience_count = len(filtered_df[filtered_df["category"] == "편의점"])
 cafe_count = len(filtered_df[filtered_df["category"] == "카페"])
@@ -51,8 +51,7 @@ col3.metric(label="🔴 카페 수", value=f"{cafe_count}개")
 
 st.markdown("---")
 
-# 5. 지도 생성 (OpenStreetMap - 한글 도로/지명 또렷한 기본 스타일)
-# 데이터가 있을 경우 평균 위치로 이동
+# 5. 지도 생성 (오픈스트리트맵 기준)
 if not filtered_df.empty:
     center_lat = filtered_df["lat"].mean()
     center_lon = filtered_df["lon"].mean()
@@ -65,21 +64,16 @@ m = folium.Map(
     tiles="OpenStreetMap"
 )
 
-# 6. 표준 Glyphicon 아이콘 적용 (오류 방지 및 또렷한 핀)
+# 6. 마커 추가 (충돌이 적은 기본 핀 마커 방식)
 for _, row in filtered_df.iterrows():
-    if row["category"] == "편의점":
-        color = "blue"
-        icon_name = "shopping-cart"
-    else:
-        color = "red"
-        icon_name = "glass"  # 카페/음료 표준 아이콘
-
+    color = "blue" if row["category"] == "편의점" else "red"
+    
     folium.Marker(
         location=[row["lat"], row["lon"]],
         popup=folium.Popup(f"<b>{row['name']}</b><br>유형: {row['category']}", max_width=200),
         tooltip=f"{row['name']} ({row['category']})",
-        icon=folium.Icon(color=color, icon=icon_name)
+        icon=folium.Icon(color=color)
     ).add_to(m)
 
-# 7. 지도 화면 출력
-st_folium(m, use_container_width=True, height=520, key="map")
+# 7. 지도 출력 (가장 안정적인 파라미터 조합)
+st_folium(m, width=None, height=500)
